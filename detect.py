@@ -11,13 +11,18 @@ import cv2
 from models.retinaface import RetinaFace
 from utils.box_utils import decode, decode_landm
 import time
+import recognize
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten, BatchNormalization, Conv2D, MaxPool2D
+from tensorflow.keras.models import load_model as load
+classes = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 parser = argparse.ArgumentParser(description='Retinaface')
 
 parser.add_argument('-m', '--trained_model', default='./weights/Resnet50_Final.pth',
                     type=str, help='Trained state_dict file path to open')
-parser.add_argument('--network', default='resnet50', help='Backbone network mobile0.25 or resnet50')
-parser.add_argument('--cpu', action="store_true", default=False, help='Use cpu inference')
+parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
+parser.add_argument('--cpu', action="store_true", default=True, help='Use cpu inference')
 parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
 parser.add_argument('--top_k', default=5000, type=int, help='top_k')
 parser.add_argument('--nms_threshold', default=0.4, type=float, help='nms_threshold')
@@ -25,6 +30,7 @@ parser.add_argument('--keep_top_k', default=750, type=int, help='keep_top_k')
 parser.add_argument('-s', '--save_image', action="store_true", default=True, help='show detection results')
 parser.add_argument('--vis_thres', default=0.6, type=float, help='visualization_threshold')
 args = parser.parse_args()
+
 
 
 def check_keys(model, pretrained_state_dict):
@@ -64,6 +70,9 @@ def load_model(model, pretrained_path, load_to_cpu):
 
 
 if __name__ == '__main__':
+    # model = recognize.create_model()
+    # model.load_weights('weights/Facial_Expression_Recognition.h5')
+    model = load('weights/trained_model.h5')
     torch.set_grad_enabled(False)
     cfg = None
     if args.network == "mobile0.25":
@@ -83,10 +92,14 @@ if __name__ == '__main__':
     resize = 1
 
     # testing begin
-    for i in range(100):
-        image_path = "./curve/test.jpg"
-        img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
+    cap = cv2.VideoCapture(0)
+
+    while cap.isOpened():
+        # for i in range(100):
+        # image_path = "./curve/test.jpg"
+        # img_raw = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        _, img_raw = cap.read()
         img = np.float32(img_raw)
 
         im_height, im_width, _ = img.shape
@@ -111,8 +124,8 @@ if __name__ == '__main__':
         scores = conf.squeeze(0).data.cpu().numpy()[:, 1]
         landms = decode_landm(landms.data.squeeze(0), prior_data, cfg['variance'])
         scale1 = torch.Tensor([img.shape[3], img.shape[2], img.shape[3], img.shape[2],
-                               img.shape[3], img.shape[2], img.shape[3], img.shape[2],
-                               img.shape[3], img.shape[2]])
+                                img.shape[3], img.shape[2], img.shape[3], img.shape[2],
+                                img.shape[3], img.shape[2]])
         scale1 = scale1.to(device)
         landms = landms * scale1 / resize
         landms = landms.cpu().numpy()
@@ -154,6 +167,17 @@ if __name__ == '__main__':
                 cy = b[1] + 12
                 cv2.putText(img_raw, text, (cx, cy),
                             cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255))
+                
+                # Recognize Face
+                cropped_img = img_raw[b[1]:b[3], b[0]:b[2]]
+                processed_img = recognize.image_processing(cropped_img)
+                predicted_class = model.predict(processed_img)
+                print(predicted_class)
+                predicted_class = classes[np.argmax(predicted_class)]
+
+                dx = b[0]
+                dy = b[1] - 12
+                cv2.putText(img_raw, predicted_class, (dx, dy), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 0))
 
                 # landms
                 cv2.circle(img_raw, (b[5], b[6]), 1, (0, 0, 255), 4)
@@ -163,6 +187,12 @@ if __name__ == '__main__':
                 cv2.circle(img_raw, (b[13], b[14]), 1, (255, 0, 0), 4)
             # save image
 
-            name = "test.jpg"
-            cv2.imwrite(name, img_raw)
+            # name = "test.jpg"
+            # cv2.imwrite(name, img_raw)
+            cv2.imshow('output_video', img_raw)
+            key = cv2.waitKey(10)
+            if key == ord('q'):
+                break 
+    cap.release()
+    cv2.destroyAllWindows()
 

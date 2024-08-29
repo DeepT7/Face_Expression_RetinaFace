@@ -12,13 +12,13 @@ from utils.box_utils import decode, decode_landm
 import time
 import recognize
 from tensorflow.keras.models import load_model as load
-classes = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
+classes = ['surprise', 'fear', 'disgust', 'happiness', 'sadness', 'anger', 'neutral']
 
 parser = argparse.ArgumentParser(description='Retinaface')
 
 parser.add_argument('-det', '--detection_model', default='./weights/Resnet50_Final.pth',
                     type=str, help='Trained state_dict file path to open')
-parser.add_argument('-reg', '--recognition_model', default='./weigths/trained_model.h5')
+parser.add_argument('-reg', '--recognition_model', default='./weigths/model_9113.h5')
 parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
 parser.add_argument('--cpu', action="store_true", default=True, help='Use cpu inference')
 parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
@@ -68,9 +68,7 @@ def load_model(model, pretrained_path, load_to_cpu):
 
 
 if __name__ == '__main__':
-    # model = recognize.create_model()
-    # model.load_weights('weights/Facial_Expression_Recognition.h5')
-    model = load(args.recognition_model)
+    recognition_model = load(args.recognition_model)
     torch.set_grad_enabled(False)
     cfg = None
     if args.network == "mobile0.25":
@@ -91,7 +89,7 @@ if __name__ == '__main__':
 
     # testing begin
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture('video.mp4')
 
     while cap.isOpened():
         _, img_raw = cap.read()
@@ -165,8 +163,11 @@ if __name__ == '__main__':
                 
                 # Recognize Face
                 cropped_img = img_raw[b[1]:b[3], b[0]:b[2]]
+                print(cropped_img.shape)
+                if any(element == 0 for element in cropped_img.shape):
+                    continue
                 processed_img = recognize.image_processing(cropped_img)
-                predicted_class = model.predict(processed_img)
+                predicted_class = recognition_model.predict(processed_img)
                 print(predicted_class)
                 predicted_class = classes[np.argmax(predicted_class)]
 

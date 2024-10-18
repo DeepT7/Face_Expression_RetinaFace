@@ -18,7 +18,7 @@ parser = argparse.ArgumentParser(description='Retinaface')
 
 parser.add_argument('-det', '--detection_model', default='./weights/Resnet50_Final.pth',
                     type=str, help='Trained state_dict file path to open')
-parser.add_argument('-reg', '--recognition_model', default='./weigths/model_9113.h5')
+parser.add_argument('-reg', '--recognition_model', default='weights/model_9113.h5')
 parser.add_argument('--network', default='mobile0.25', help='Backbone network mobile0.25 or resnet50')
 parser.add_argument('--cpu', action="store_true", default=True, help='Use cpu inference')
 parser.add_argument('--confidence_threshold', default=0.02, type=float, help='confidence_threshold')
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     # testing begin
 
-    cap = cv2.VideoCapture('video.mp4')
+    cap = cv2.VideoCapture(0)
 
     while cap.isOpened():
         _, img_raw = cap.read()
